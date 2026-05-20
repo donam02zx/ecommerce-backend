@@ -1,0 +1,11 @@
+target/
+out/
+.idea/
+*.iml
+web/
+.mvn/wrapper/maven-wrapper.jar
+
+application-local.yml
+
+.DS_Store
+Thumbs.db

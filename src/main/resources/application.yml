@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: ecommerce-backend
+  config:
+    import: optional:classpath:application-local.yml
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ecommerce_db
+    username: postgres
+    password: 123123
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+server:
+  port: 8081
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    org.hibernate.SQL: debug

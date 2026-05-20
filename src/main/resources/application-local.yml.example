@@ -1,0 +1,4 @@
+spring:
+  datasource:
+    username: postgres
+    password: YOUR_PASSWORD_HERE
