@@ -21,11 +21,14 @@ public class ProductEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id", nullable = false)
     private CategoriesEntity category;
+
     @Column(nullable = false, length = 200)
     private String name;
+
     @Column(nullable = false, unique = true, length = 100)
     private String sku;
     @Column(columnDefinition = "TEXT")
