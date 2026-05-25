@@ -29,3 +29,7 @@ springdoc:
 logging:
   level:
     org.hibernate.SQL: debug
+
+jwt:
+  secret: vietprodev-secret-key-must-be-at-least-256-bits-long-for-hs256
+  expiration-ms: 86400000
