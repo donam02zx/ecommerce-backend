@@ -14,6 +14,7 @@ import java.util.Objects;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@IdClass(UserRoleEntity.UserRoleId.class)
 public class UserRoleEntity {
     @Id
     @Column(name = "user_id")
