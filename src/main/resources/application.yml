@@ -33,3 +33,9 @@ logging:
 jwt:
   secret: vietprodev-secret-key-must-be-at-least-256-bits-long-for-hs256
   expiration-ms: 86400000
+
+vnpay:
+  tmn-code: VSUMZHNG
+  hash-secret: EHHY40NBTOOMQV68RX2X6HU0TEQXUVDB
+  payment-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  return-url: http://localhost:8081/api/payment/vnpay-return
