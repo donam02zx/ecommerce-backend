@@ -10,10 +10,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
@@ -25,13 +25,14 @@ public class ProductController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a new product")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @Operation(summary = "Create product [ADMIN, STAFF]")
     public ApiResponse<ProductResponse> create(@Valid @RequestBody ProductRequest request) {
         return ApiResponse.success(productService.create(request));
     }
 
     @GetMapping
-    @Operation(summary = "Search/filter products with pagination")
+    @Operation(summary = "Search/filter products [PUBLIC]")
     public ApiResponse<PageResponse<ProductResponse>> search(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long categoryId,
@@ -43,22 +44,25 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get product by ID")
+    @Operation(summary = "Get product by ID [PUBLIC]")
     public ApiResponse<ProductResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(productService.getById(id));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update product by ID")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @Operation(summary = "Update product [ADMIN, STAFF]")
     public ApiResponse<ProductResponse> update(@PathVariable Long id,
                                                @Valid @RequestBody ProductRequest request) {
         return ApiResponse.success(productService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete product by ID")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Delete product [ADMIN]")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         productService.delete(id);
-        return ApiResponse.<Void>builder().success(true).message("Product deleted successfully").build();
+        return ApiResponse.<Void>builder()
+                .success(true).message("Product deleted successfully").build();
     }
 }

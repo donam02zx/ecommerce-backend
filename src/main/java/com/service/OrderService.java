@@ -116,23 +116,23 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public OrderResponse getOrderById(String email, Long orderId) {
-        UserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> AppException.notFound("User not found"));
+    public OrderResponse getOrderById(String email, Long orderId, boolean isAdminOrStaff) {
         OrderEntity order = orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> AppException.notFound("Order not found: " + orderId));
-        if (!order.getUser().getId().equals(user.getId()))
-            throw AppException.badRequest("Order does not belong to current user");
+        // CUSTOMER chỉ xem order của mình, ADMIN/STAFF xem được tất cả
+        if (!isAdminOrStaff) {
+            UserEntity user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> AppException.notFound("User not found"));
+            if (!order.getUser().getId().equals(user.getId()))
+                throw AppException.badRequest("Order does not belong to current user");
+        }
         return OrderResponse.from(order);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> searchOrders(String email, String status,
                                                     String fromDate, String toDate,
-                                                    int page, int limit) {
-        UserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> AppException.notFound("User not found"));
-
+                                                    int page, int limit, boolean isAdminOrStaff) {
         OrderStatus orderStatus = null;
         if (status != null && !status.isBlank()) {
             try { orderStatus = OrderStatus.valueOf(status.toUpperCase()); }
@@ -143,14 +143,23 @@ public class OrderService {
         Instant to   = toDate   != null && !toDate.isBlank()   ? Instant.parse(toDate)   : null;
 
         PageRequest pageable = PageRequest.of(page - 1, limit, Sort.by("createdAt").descending());
-        Page<OrderEntity> result = orderRepository.searchByUser(user.getId(), orderStatus, from, to, pageable);
+
+        Page<OrderEntity> result;
+        if (isAdminOrStaff) {
+            // ADMIN/STAFF xem tất cả order
+            result = orderRepository.searchAll(orderStatus, from, to, pageable);
+        } else {
+            // CUSTOMER chỉ xem order của mình
+            UserEntity user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> AppException.notFound("User not found"));
+            result = orderRepository.searchByUser(user.getId(), orderStatus, from, to, pageable);
+        }
 
         return PageResponse.<OrderResponse>builder()
                 .content(result.getContent().stream()
                         .map(o -> OrderResponse.from(orderRepository.findByIdWithItems(o.getId()).orElse(o)))
                         .toList())
-                .page(page)
-                .limit(limit)
+                .page(page).limit(limit)
                 .totalElements(result.getTotalElements())
                 .totalPages(result.getTotalPages())
                 .hasNext(result.hasNext())
