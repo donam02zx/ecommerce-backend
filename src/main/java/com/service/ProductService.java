@@ -1,6 +1,7 @@
 package com.service;
 
 import com.dto.request.ProductRequest;
+import com.dto.response.PageResponse;
 import com.dto.response.ProductResponse;
 import com.entity.CategoriesEntity;
 import com.entity.ProductEntity;
@@ -9,9 +10,13 @@ import com.repository.CategoryRepository;
 import com.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Slf4j
@@ -44,14 +49,30 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<ProductResponse> getAll() {
         return productRepository.findAll()
-                .stream()
-                .map(ProductResponse::from)
-                .toList();
+                .stream().map(ProductResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
     public ProductResponse getById(Long id) {
         return ProductResponse.from(findById(id));
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<ProductResponse> search(String search, Long categoryId,
+                                                BigDecimal minPrice, BigDecimal maxPrice,
+                                                int page, int limit) {
+        PageRequest pageable = PageRequest.of(page - 1, limit, Sort.by("id").descending());
+        Page<ProductEntity> result = productRepository.search(search, categoryId, minPrice, maxPrice, pageable);
+
+        return PageResponse.<ProductResponse>builder()
+                .content(result.getContent().stream().map(ProductResponse::from).toList())
+                .page(page)
+                .limit(limit)
+                .totalElements(result.getTotalElements())
+                .totalPages(result.getTotalPages())
+                .hasNext(result.hasNext())
+                .hasPrevious(result.hasPrevious())
+                .build();
     }
 
     @Transactional
@@ -74,7 +95,7 @@ public class ProductService {
 
     @Transactional
     public void delete(Long id) {
-        findById(id); // check exists
+        findById(id);
         productRepository.deleteById(id);
         log.info("Product deleted: id={}", id);
     }

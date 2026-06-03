@@ -3,6 +3,7 @@ package com.controller;
 import com.dto.request.CreateOrderRequest;
 import com.dto.response.ApiResponse;
 import com.dto.response.OrderResponse;
+import com.dto.response.PageResponse;
 import com.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -12,8 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -32,9 +31,14 @@ public class OrderController {
     }
 
     @GetMapping
-    @Operation(summary = "Get my orders")
-    public ApiResponse<List<OrderResponse>> getMyOrders() {
-        return ApiResponse.success(orderService.getMyOrders(getEmail()));
+    @Operation(summary = "Search/filter my orders with pagination")
+    public ApiResponse<PageResponse<OrderResponse>> searchOrders(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.success(orderService.searchOrders(getEmail(), status, fromDate, toDate, page, limit));
     }
 
     @GetMapping("/{id}")

@@ -2,6 +2,7 @@ package com.controller;
 
 import com.dto.request.ProductRequest;
 import com.dto.response.ApiResponse;
+import com.dto.response.PageResponse;
 import com.dto.response.ProductResponse;
 import com.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -29,9 +31,15 @@ public class ProductController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all products")
-    public ApiResponse<List<ProductResponse>> getAll() {
-        return ApiResponse.success(productService.getAll());
+    @Operation(summary = "Search/filter products with pagination")
+    public ApiResponse<PageResponse<ProductResponse>> search(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.success(productService.search(search, categoryId, minPrice, maxPrice, page, limit));
     }
 
     @GetMapping("/{id}")
@@ -51,9 +59,6 @@ public class ProductController {
     @Operation(summary = "Delete product by ID")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         productService.delete(id);
-        return ApiResponse.<Void>builder()
-                .success(true)
-                .message("Product deleted successfully")
-                .build();
+        return ApiResponse.<Void>builder().success(true).message("Product deleted successfully").build();
     }
 }
