@@ -11,6 +11,8 @@ import com.exception.AppException;
 import com.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,39 +33,71 @@ public class OrderService {
     private final StockTransactionRepository stockTransactionRepository;
     private final CartRepository cartRepository;
 
+    /**
+     * Transaction flow:
+     * 1. Validate user
+     * 2. Validate product (exists + active)
+     * 3. Check inventory (enough stock)
+     * 4. Reserve stock (update reserved_quantity + ghi stock_transaction)
+     * 5. Create order
+     * 6. Create order items (lưu price tại thời điểm mua)
+     * 7. Clear cart
+     *
+     * Optimistic Locking: @Version trên InventoryEntity
+     * Nếu 2 request cùng lúc reserve stock → chỉ 1 thành công,
+     * cái còn lại bị OptimisticLockingFailureException → trả 409 CONFLICT
+     */
     @Transactional
     public OrderResponse createOrder(String email, CreateOrderRequest request) {
-        // 1. Validate user
+        try {
+            return doCreateOrder(email, request);
+        } catch (OptimisticLockingFailureException e) {
+            log.warn("[ORDER] Optimistic lock conflict for user={}, retrying...", email);
+            // Retry 1 lần
+            try {
+                return doCreateOrder(email, request);
+            } catch (OptimisticLockingFailureException ex) {
+                log.error("[ORDER] Optimistic lock conflict after retry for user={}", email);
+                throw new AppException(HttpStatus.CONFLICT,
+                        "Product is being ordered by another user, please try again");
+            }
+        }
+    }
+
+    @Transactional
+    public OrderResponse doCreateOrder(String email, CreateOrderRequest request) {
+        // STEP 1: Validate user
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> AppException.notFound("User not found"));
+        log.info("[ORDER] Step 1 - Validated user: {}", email);
 
-        // 2. Validate products và check inventory
         List<OrderItemEntity> orderItems = new ArrayList<>();
         BigDecimal totalPrice = BigDecimal.ZERO;
 
         for (OrderItemRequest itemReq : request.getItems()) {
-            // Validate product
+
+            // STEP 2: Validate product
             ProductEntity product = productRepository.findById(itemReq.getProductId())
                     .orElseThrow(() -> AppException.notFound("Product not found: " + itemReq.getProductId()));
             if (!product.getActive()) {
                 throw AppException.badRequest("Product is not active: " + product.getName());
             }
+            log.info("[ORDER] Step 2 - Validated product: {}", product.getName());
 
-            // Check inventory
+            // STEP 3: Check inventory
             InventoryEntity inventory = inventoryRepository.findByProductId(product.getId())
-                    .orElseThrow(() -> AppException.badRequest("No inventory found for product: " + product.getName()));
+                    .orElseThrow(() -> AppException.badRequest("No inventory for product: " + product.getName()));
             int available = inventory.getQuantity() - inventory.getReservedQuantity();
             if (itemReq.getQuantity() > available) {
                 throw AppException.badRequest("Not enough stock for: " + product.getName()
                         + ". Available: " + available + ", requested: " + itemReq.getQuantity());
             }
+            log.info("[ORDER] Step 3 - Inventory checked: available={}", available);
 
-            // 3. Reserve stock
+            // STEP 4: Reserve stock — @Version tự động tăng, nếu conflict → OptimisticLockingFailureException
             int before = inventory.getQuantity();
             inventory.setReservedQuantity(inventory.getReservedQuantity() + itemReq.getQuantity());
             inventoryRepository.save(inventory);
-
-            // Ghi stock transaction
             stockTransactionRepository.save(StockTransactionEntity.builder()
                     .product(product)
                     .type(StockTransactionType.RESERVE)
@@ -73,18 +107,17 @@ public class OrderService {
                     .referenceType("ORDER")
                     .note("Reserved for order")
                     .build());
+            log.info("[ORDER] Step 4 - Stock reserved: productId={}, qty={}", product.getId(), itemReq.getQuantity());
 
-            // Build order item — lưu price tại thời điểm mua
-            OrderItemEntity orderItem = OrderItemEntity.builder()
+            orderItems.add(OrderItemEntity.builder()
                     .product(product)
                     .quantity(itemReq.getQuantity())
                     .price(product.getPrice())
-                    .build();
-            orderItems.add(orderItem);
+                    .build());
             totalPrice = totalPrice.add(product.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity())));
         }
 
-        // 4. Create order
+        // STEP 5: Create order
         OrderEntity order = OrderEntity.builder()
                 .user(user)
                 .status(OrderStatus.RESERVED)
@@ -92,28 +125,30 @@ public class OrderService {
                 .items(new ArrayList<>())
                 .build();
         orderRepository.save(order);
+        log.info("[ORDER] Step 5 - Order created: orderId={}", order.getId());
 
-        // 5. Save order items
+        // STEP 6: Create order items
         for (OrderItemEntity item : orderItems) {
-            item = OrderItemEntity.builder()
+            OrderItemEntity savedItem = OrderItemEntity.builder()
                     .order(order)
                     .product(item.getProduct())
                     .quantity(item.getQuantity())
                     .price(item.getPrice())
                     .build();
-            orderItemRepository.save(item);
-            order.getItems().add(item);
+            orderItemRepository.save(savedItem);
+            order.getItems().add(savedItem);
         }
+        log.info("[ORDER] Step 6 - Order items saved: count={}", orderItems.size());
 
-        // 6. Clear cart
+        // STEP 7: Clear cart
         cartRepository.findByUserIdAndStatus(user.getId(), CartStatus.ACTIVE)
                 .ifPresent(cart -> {
                     cart.getItems().clear();
                     cartRepository.save(cart);
-                    log.info("Cart cleared after order: cartId={}", cart.getId());
+                    log.info("[ORDER] Step 7 - Cart cleared: cartId={}", cart.getId());
                 });
 
-        log.info("Order created: orderId={}, userId={}, total={}", order.getId(), user.getId(), totalPrice);
+        log.info("[ORDER] Completed: orderId={}, total={}", order.getId(), totalPrice);
         return OrderResponse.from(order);
     }
 
@@ -122,10 +157,7 @@ public class OrderService {
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> AppException.notFound("User not found"));
         return orderRepository.findByUserId(user.getId()).stream()
-                .map(o -> {
-                    OrderEntity withItems = orderRepository.findByIdWithItems(o.getId()).orElse(o);
-                    return OrderResponse.from(withItems);
-                })
+                .map(o -> OrderResponse.from(orderRepository.findByIdWithItems(o.getId()).orElse(o)))
                 .toList();
     }
 
