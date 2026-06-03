@@ -20,6 +20,7 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     @Query("SELECT o FROM OrderEntity o WHERE o.user.id = :userId ORDER BY o.createdAt DESC")
     List<OrderEntity> findByUserId(@Param("userId") Long userId);
 
+    // CUSTOMER: filter theo userId
     @Query("""
         SELECT o FROM OrderEntity o
         WHERE o.user.id = :userId
@@ -30,6 +31,21 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     """)
     Page<OrderEntity> searchByUser(
             @Param("userId") Long userId,
+            @Param("status") OrderStatus status,
+            @Param("fromDate") Instant fromDate,
+            @Param("toDate") Instant toDate,
+            Pageable pageable
+    );
+
+    // ADMIN/STAFF: xem tất cả order
+    @Query("""
+        SELECT o FROM OrderEntity o
+        WHERE (CAST(:status as string) IS NULL OR o.status = :status)
+        AND (CAST(:fromDate as TIMESTAMP) IS NULL OR o.createdAt >= :fromDate)
+        AND (CAST(:toDate as TIMESTAMP) IS NULL OR o.createdAt <= :toDate)
+        ORDER BY o.createdAt DESC
+    """)
+    Page<OrderEntity> searchAll(
             @Param("status") OrderStatus status,
             @Param("fromDate") Instant fromDate,
             @Param("toDate") Instant toDate,
