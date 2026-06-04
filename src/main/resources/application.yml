@@ -4,13 +4,13 @@ spring:
   config:
     import: optional:classpath:application-local.yml
   datasource:
-    url: jdbc:postgresql://localhost:5432/ecommerce_db
-    username: postgres
-    password: 123123
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/test_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:none}
     show-sql: true
     properties:
       hibernate:
@@ -31,11 +31,11 @@ logging:
     org.hibernate.SQL: debug
 
 jwt:
-  secret: vietprodev-secret-key-must-be-at-least-256-bits-long-for-hs256
-  expiration-ms: 86400000
+  secret: ${JWT_SECRET:vietprodev-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
 vnpay:
-  tmn-code: VSUMZHNG
-  hash-secret: EHHY40NBTOOMQV68RX2X6HU0TEQXUVDB
+  tmn-code: ${VNPAY_TMN_CODE:VSUMZHNG}
+  hash-secret: ${VNPAY_HASH_SECRET:EHHY40NBTOOMQV68RX2X6HU0TEQXUVDB}
   payment-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
   return-url: http://localhost:8081/api/payment/vnpay-return
