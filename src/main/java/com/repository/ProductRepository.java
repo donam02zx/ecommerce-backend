@@ -13,20 +13,29 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     boolean existsBySkuAndIdNot(String sku, Long id);
     boolean existsByCategoryId(Long categoryId);
 
+
     @Query("""
-        SELECT p FROM ProductEntity p
-        WHERE (:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search as string), '%'))
-                               OR LOWER(p.sku)  LIKE LOWER(CONCAT('%', CAST(:search as string), '%')))
+        SELECT p.id FROM ProductEntity p
+        WHERE (:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
+                               OR LOWER(p.sku)  LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
         AND   (:categoryId IS NULL OR p.category.id = :categoryId)
         AND   (:minPrice IS NULL OR p.price >= :minPrice)
         AND   (:maxPrice IS NULL OR p.price <= :maxPrice)
         AND   p.active = true
     """)
-    Page<ProductEntity> search(
+    Page<Long> searchIds(
             @Param("search") String search,
             @Param("categoryId") Long categoryId,
             @Param("minPrice") java.math.BigDecimal minPrice,
             @Param("maxPrice") java.math.BigDecimal maxPrice,
             Pageable pageable
     );
+
+
+    @Query("""
+        SELECT p FROM ProductEntity p
+        JOIN FETCH p.category
+        WHERE p.id IN :ids
+    """)
+    java.util.List<ProductEntity> findAllByIdWithCategory(@Param("ids") java.util.List<Long> ids);
 }

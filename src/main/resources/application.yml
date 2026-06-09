@@ -4,7 +4,7 @@ spring:
   config:
     import: optional:classpath:application-local.yml
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/test_db}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ecommerce_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:123123}
     driver-class-name: org.postgresql.Driver
@@ -14,7 +14,8 @@ spring:
     show-sql: true
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
+        generate_statistics: true
     open-in-view: false
 
 server:
@@ -29,6 +30,7 @@ springdoc:
 logging:
   level:
     org.hibernate.SQL: debug
+    org.hibernate.stat: debug
 
 jwt:
   secret: ${JWT_SECRET:vietprodev-secret-key-must-be-at-least-256-bits-long-for-hs256}
