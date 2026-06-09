@@ -1,5 +1,6 @@
 package com.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.LazyToOne;
@@ -44,10 +45,9 @@ public class ProductEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-//    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL, fetch=FetchType.LAZY)
-//    @LazyToOne(LazyToOneOption.NO_PROXY)
-//    @ToString.Exclude
-//    private InventoryEntity inventory;
+    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = false)
+    @ToString.Exclude
+    private InventoryEntity inventory;
 
     @OneToMany(mappedBy = "product")
     @Builder.Default

@@ -17,9 +17,12 @@ public class InventoryEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @MapsId
     @JoinColumn(name = "product_id", nullable = false, unique = true)
     private ProductEntity product;
+
     @Column(nullable = false)
     private Integer quantity;
     @Column(name = "reserved_quantity", nullable = false)
