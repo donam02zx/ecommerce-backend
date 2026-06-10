@@ -31,6 +31,7 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.stat: debug
+    org.hibernate.orm.jdbc.bind: trace
 
 jwt:
   secret: ${JWT_SECRET:vietprodev-secret-key-must-be-at-least-256-bits-long-for-hs256}

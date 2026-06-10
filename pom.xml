@@ -89,6 +89,12 @@
             <artifactId>assertj-core</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>io.github.perplexhub</groupId>
+            <artifactId>rsql-jpa-specification</artifactId>
+            <version>6.0.7</version>
+        </dependency>
     </dependencies>
 
     <build>

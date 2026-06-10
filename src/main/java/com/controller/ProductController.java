@@ -6,6 +6,7 @@ import com.dto.response.PageResponse;
 import com.dto.response.ProductResponse;
 import com.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +32,9 @@ public class ProductController {
         return ApiResponse.success(productService.create(request));
     }
 
+
     @GetMapping
-    @Operation(summary = "Search/filter products [PUBLIC]")
+    @Operation(summary = "Search/filter products (legacy params)")
     public ApiResponse<PageResponse<ProductResponse>> search(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long categoryId,
@@ -41,6 +43,20 @@ public class ProductController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int limit) {
         return ApiResponse.success(productService.search(search, categoryId, minPrice, maxPrice, page, limit));
+    }
+
+
+    @GetMapping("/filter")
+    @Operation(summary = "RSQL filter products",
+            description = "Operators: ==, !=, =gt=, =lt=, =ge=, =le=, =in=, =out=, =like=. AND: ; OR: ,")
+    public ApiResponse<PageResponse<ProductResponse>> rsqlFilter(
+            @Parameter(description = "RSQL filter, e.g. price>=100000;category.id==1")
+            @RequestParam(required = false) String filter,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit,
+            @Parameter(description = "Sort: field,asc|desc e.g. price,asc")
+            @RequestParam(required = false) String sort) {
+        return ApiResponse.success(productService.rsqlSearch(filter, page, limit, sort));
     }
 
     @GetMapping("/{id}")
@@ -62,7 +78,6 @@ public class ProductController {
     @Operation(summary = "Delete product [ADMIN]")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         productService.delete(id);
-        return ApiResponse.<Void>builder()
-                .success(true).message("Product deleted successfully").build();
+        return ApiResponse.<Void>builder().success(true).message("Product deleted successfully").build();
     }
 }
