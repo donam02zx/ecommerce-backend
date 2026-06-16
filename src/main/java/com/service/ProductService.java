@@ -3,10 +3,12 @@ package com.service;
 import com.dto.request.ProductRequest;
 import com.dto.response.PageResponse;
 import com.dto.response.ProductResponse;
+import com.dto.response.TopProductResponse;
 import com.entity.CategoriesEntity;
 import com.entity.ProductEntity;
 import com.exception.AppException;
 import com.repository.CategoryRepository;
+import com.repository.OrderItemRepository;
 import com.repository.ProductRepository;
 import io.github.perplexhub.rsql.RSQLJPASupport;
 import jakarta.persistence.EntityManager;
@@ -31,6 +33,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final OrderItemRepository orderItemRepository;
     private final EntityManager entityManager;
 
     @Transactional
@@ -148,5 +151,16 @@ public class ProductService {
                 .hasNext(result.hasNext())
                 .hasPrevious(result.hasPrevious())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TopProductResponse> getTop10BestSellingProducts() {
+        List<Object[]> results = orderItemRepository.findTop10BestSellingProducts();
+
+        // Giới hạn tối đa 10 sản phẩm
+        return results.stream()
+                .limit(10)
+                .map(TopProductResponse::fromObjectArray)
+                .toList();
     }
 }

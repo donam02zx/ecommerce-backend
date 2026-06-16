@@ -4,6 +4,7 @@ import com.dto.request.ProductRequest;
 import com.dto.response.ApiResponse;
 import com.dto.response.PageResponse;
 import com.dto.response.ProductResponse;
+import com.dto.response.TopProductResponse;
 import com.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
@@ -79,5 +81,14 @@ public class ProductController {
     public ApiResponse<Void> delete(@PathVariable Long id) {
         productService.delete(id);
         return ApiResponse.<Void>builder().success(true).message("Product deleted successfully").build();
+    }
+
+
+    @GetMapping("/top")
+    @Operation(summary = "Top 10 best-selling products [PUBLIC]",
+            description = "Returns the 10 products with the highest total quantity ordered, " +
+                    "ranked from most to least. Only counts orders with status PAID or COMPLETED.")
+    public ApiResponse<List<TopProductResponse>> getTop10BestSelling() {
+        return ApiResponse.success(productService.getTop10BestSellingProducts());
     }
 }
