@@ -45,7 +45,7 @@ public class ProductEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = false)
+    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL)
     @ToString.Exclude
     private InventoryEntity inventory;
 

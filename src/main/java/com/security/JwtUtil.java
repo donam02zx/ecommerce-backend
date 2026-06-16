@@ -17,8 +17,15 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expiration-ms}")
+    /**
+     * Access token: ngắn (15 phút mặc định)
+     * Refresh token rotation đảm bảo user không cần login lại
+     */
+    @Value("${jwt.expiration-ms:900000}")       // 15 phút default
     private long expirationMs;
+
+    @Value("${jwt.refresh-expiration-ms:604800000}") // 7 ngày default
+    private long refreshExpirationMs;
 
     private SecretKey getKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
@@ -50,6 +57,14 @@ public class JwtUtil {
             log.warn("Invalid JWT: {}", e.getMessage());
             return false;
         }
+    }
+
+    public long getExpirationMs() {
+        return expirationMs;
+    }
+
+    public long getRefreshExpirationMs() {
+        return refreshExpirationMs;
     }
 
     private Claims parseClaims(String token) {
