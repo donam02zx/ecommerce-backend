@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -17,14 +18,10 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    /**
-     * Access token: ngắn (15 phút mặc định)
-     * Refresh token rotation đảm bảo user không cần login lại
-     */
-    @Value("${jwt.expiration-ms:900000}")       // 15 phút default
+    @Value("${jwt.expiration-ms:900000}")
     private long expirationMs;
 
-    @Value("${jwt.refresh-expiration-ms:604800000}") // 7 ngày default
+    @Value("${jwt.refresh-expiration-ms:604800000}")
     private long refreshExpirationMs;
 
     private SecretKey getKey() {
@@ -32,13 +29,20 @@ public class JwtUtil {
     }
 
     public String generateToken(Long userId, String email) {
+        String jti = UUID.randomUUID().toString();
+
         return Jwts.builder()
+                .id(jti)
                 .subject(email)
                 .claim("userId", userId)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(getKey())
                 .compact();
+    }
+
+    public String extractJti(String token) {
+        return parseClaims(token).getId();
     }
 
     public String extractEmail(String token) {
@@ -49,10 +53,22 @@ public class JwtUtil {
         return parseClaims(token).get("userId", Long.class);
     }
 
+    public Date extractExpiration(String token) {
+        return parseClaims(token).getExpiration();
+    }
+
+    public Date extractIssuedAt(String token) {
+        return parseClaims(token).getIssuedAt();
+    }
+
     public boolean isValid(String token) {
         try {
-            parseClaims(token);
-            return true;
+            Claims claims = parseClaims(token);
+            // Check expiration
+            return claims.getExpiration().after(new Date());
+        } catch (ExpiredJwtException e) {
+            log.debug("Token expired: {}", e.getMessage());
+            return false;
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("Invalid JWT: {}", e.getMessage());
             return false;

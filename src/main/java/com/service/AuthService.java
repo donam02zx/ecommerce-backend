@@ -27,6 +27,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Date;
 import java.util.HexFormat;
 
 @Slf4j
@@ -40,6 +41,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final TokenBlacklistService tokenBlacklistService;  // <-- Thêm
 
     @Transactional
     public UserResponse register(RegisterRequest request) {
@@ -77,10 +79,7 @@ public class AuthService {
             throw AppException.badRequest("Invalid email or password");
         }
 
-        // Tạo access token (JWT, ngắn hạn)
         String accessToken = jwtUtil.generateToken(user.getId(), user.getEmail());
-
-        // Tạo refresh token (random string, dài hạn)
         String rawRefreshToken = generateRawToken();
         String tokenHash = hashToken(rawRefreshToken);
 
@@ -96,20 +95,13 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(rawRefreshToken)  // trả raw token về client
+                .refreshToken(rawRefreshToken)
                 .tokenType("Bearer")
                 .expiresIn(jwtUtil.getExpirationMs() / 1000)
                 .user(UserResponse.from(user))
                 .build();
     }
 
-    /**
-     * Refresh flow — Token Rotation:
-     * 1. Tìm refresh token trong DB theo hash
-     * 2. Validate: không revoked, chưa hết hạn
-     * 3. Revoke token cũ
-     * 4. Cấp access token mới + refresh token mới
-     */
     @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
         String tokenHash = hashToken(request.getRefreshToken());
@@ -118,10 +110,10 @@ public class AuthService {
                 .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
 
         if (existingToken.getRevoked()) {
-            // Token đã bị revoke — có thể là replay attack
-            // Revoke toàn bộ token của user để an toàn
             log.warn("Revoked token reuse detected for userId={}", existingToken.getUser().getId());
             refreshTokenRepository.revokeAllByUserId(existingToken.getUser().getId());
+            // Cũng revoke tất cả access token của user
+            tokenBlacklistService.revokeAllUserTokens(existingToken.getUser().getId());
             throw new AppException(HttpStatus.UNAUTHORIZED, "Refresh token has been revoked");
         }
 
@@ -134,14 +126,12 @@ public class AuthService {
             throw new AppException(HttpStatus.UNAUTHORIZED, "Account is disabled");
         }
 
-        // Revoke token cũ (single-use)
+        // Revoke token cũ
         existingToken.setRevoked(true);
         refreshTokenRepository.save(existingToken);
 
-        // Cấp access token mới
+        // Cấp token mới
         String newAccessToken = jwtUtil.generateToken(user.getId(), user.getEmail());
-
-        // Cấp refresh token mới (rotation)
         String newRawRefreshToken = generateRawToken();
         String newTokenHash = hashToken(newRawRefreshToken);
 
@@ -165,17 +155,43 @@ public class AuthService {
     }
 
     /**
-     * Logout — revoke refresh token hiện tại
+     * Logout - revoke cả access token (qua blacklist) và refresh token
      */
     @Transactional
-    public void logout(RefreshTokenRequest request) {
-        String tokenHash = hashToken(request.getRefreshToken());
-        refreshTokenRepository.findByTokenHash(tokenHash)
+    public void logout(String authorizationHeader, RefreshTokenRequest request) {
+        // 1. Revoke refresh token
+        String refreshTokenHash = hashToken(request.getRefreshToken());
+        refreshTokenRepository.findByTokenHash(refreshTokenHash)
                 .ifPresent(token -> {
                     token.setRevoked(true);
                     refreshTokenRepository.save(token);
-                    log.info("User logged out: userId={}", token.getUser().getId());
+                    log.info("Refresh token revoked for userId={}", token.getUser().getId());
                 });
+
+        // 2. Revoke access token bằng Redis blacklist
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            String accessToken = authorizationHeader.substring(7);
+            if (jwtUtil.isValid(accessToken)) {
+                Long userId = jwtUtil.extractUserId(accessToken);
+                Date expirationDate = jwtUtil.extractExpiration(accessToken);
+                tokenBlacklistService.blacklistAccessToken(accessToken, userId, expirationDate);
+                log.info("Access token blacklisted for userId={}", userId);
+            }
+        }
+    }
+
+    /**
+     * Revoke all tokens của user (dùng khi đổi mật khẩu hoặc phát hiện xâm nhập)
+     */
+    @Transactional
+    public void revokeAllUserTokens(Long userId) {
+        // Revoke all refresh tokens
+        refreshTokenRepository.revokeAllByUserId(userId);
+
+        // Revoke all access tokens via Redis
+        tokenBlacklistService.revokeAllUserTokens(userId);
+
+        log.info("All tokens revoked for userId={}", userId);
     }
 
     @Transactional(readOnly = true)
@@ -185,11 +201,7 @@ public class AuthService {
         return UserResponse.from(user);
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
-    /**
-     * Tạo random token 32 bytes → Base64 URL-safe string
-     */
+    // Helpers
     private String generateRawToken() {
         SecureRandom random = new SecureRandom();
         byte[] bytes = new byte[32];
@@ -197,10 +209,6 @@ public class AuthService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    /**
-     * Hash token bằng SHA-256 trước khi lưu vào DB
-     * Không lưu raw token để giảm thiệt hại nếu DB bị leak
-     */
     private String hashToken(String rawToken) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -209,5 +217,23 @@ public class AuthService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to hash token", e);
         }
+    }
+
+    /**
+     * Revoke all tokens của user bằng email
+     */
+    @Transactional
+    public void revokeAllTokensByEmail(String email) {
+        // Tìm user bằng email
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> AppException.notFound("User not found with email: " + email));
+
+        // Revoke tất cả refresh tokens
+        refreshTokenRepository.revokeAllByUserId(user.getId());
+
+        // Revoke tất cả access tokens via Redis
+        tokenBlacklistService.revokeAllUserTokens(user.getId());
+
+        log.info("All tokens revoked for user: {}", email);
     }
 }

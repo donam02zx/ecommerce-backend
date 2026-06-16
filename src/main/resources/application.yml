@@ -17,6 +17,20 @@ spring:
         format_sql: false
         generate_statistics: true
     open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+
+
 
 server:
   port: 8081
@@ -38,6 +52,12 @@ jwt:
   expiration-ms: 900000
   refresh-expiration-ms: 604800000
 
+# Cấu hình Redis keys
+redis:
+  token:
+    blacklist-prefix: "token:blacklist:"
+    user-tokens-prefix: "user:tokens:"
+    cleanup-cron: "0 0 * * * *"  # Mỗi giờ chạy 1 lần
 
 vnpay:
   tmn-code: ${VNPAY_TMN_CODE:VSUMZHNG}
