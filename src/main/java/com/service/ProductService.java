@@ -153,14 +153,14 @@ public class ProductService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
-    public List<TopProductResponse> getTop10BestSellingProducts() {
-        List<Object[]> results = orderItemRepository.findTop10BestSellingProducts();
-
-        // Giới hạn tối đa 10 sản phẩm
-        return results.stream()
-                .limit(10)
-                .map(TopProductResponse::fromObjectArray)
-                .toList();
-    }
+//    @Transactional(readOnly = true)
+//    public List<TopProductResponse> getTop10BestSellingProducts() {
+//        List<Object[]> results = orderItemRepository.findTop10BestSellingProducts();
+//
+//        // Giới hạn tối đa 10 sản phẩm
+//        return results.stream()
+//                .limit(10)
+//                .map(TopProductResponse::fromObjectArray)
+//                .toList();
+//    }
 }

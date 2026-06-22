@@ -18,16 +18,16 @@ public class TopProductResponse {
     private Long totalQuantitySold;  // Tổng số lượng đã bán
 
 
-    public static TopProductResponse fromObjectArray(Object[] row) {
-        return TopProductResponse.builder()
-                .productId((Long) row[0])
-                .name((String) row[1])
-                .sku((String) row[2])
-                .price((BigDecimal) row[3])
-                .active((Boolean) row[4])
-                .categoryId((Long) row[5])
-                .categoryName((String) row[6])
-                .totalQuantitySold(((Number) row[7]).longValue())
-                .build();
-    }
+//    public static TopProductResponse fromObjectArray(Object[] row) {
+//        return TopProductResponse.builder()
+//                .productId((Long) row[0])
+//                .name((String) row[1])
+//                .sku((String) row[2])
+//                .price((BigDecimal) row[3])
+//                .active((Boolean) row[4])
+//                .categoryId((Long) row[5])
+//                .categoryName((String) row[6])
+//                .totalQuantitySold(((Number) row[7]).longValue())
+//                .build();
+//    }
 }

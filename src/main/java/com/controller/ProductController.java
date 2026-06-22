@@ -5,6 +5,7 @@ import com.dto.response.ApiResponse;
 import com.dto.response.PageResponse;
 import com.dto.response.ProductResponse;
 import com.dto.response.TopProductResponse;
+import com.service.ProductSalesSummaryService;
 import com.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -25,6 +26,7 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductSalesSummaryService productSalesSummaryService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -89,6 +91,6 @@ public class ProductController {
             description = "Returns the 10 products with the highest total quantity ordered, " +
                     "ranked from most to least. Only counts orders with status PAID or COMPLETED.")
     public ApiResponse<List<TopProductResponse>> getTop10BestSelling() {
-        return ApiResponse.success(productService.getTop10BestSellingProducts());
+        return ApiResponse.success(productSalesSummaryService.getTop10BestSellingProducts());
     }
 }
