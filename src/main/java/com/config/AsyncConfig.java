@@ -26,16 +26,15 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setQueueCapacity(200);
         executor.setKeepAliveSeconds(60);
         executor.setThreadNamePrefix("email-sender-");
-
-        // Rejected execution handler: khi queue đầy, chạy trong thread gọi
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 
         executor.initialize();
+
         log.info("✅ Email Thread Pool initialized:");
         log.info("   Core pool size: {}", executor.getCorePoolSize());
         log.info("   Max pool size: {}", executor.getMaxPoolSize());
         log.info("   Queue capacity: {}", executor.getQueueCapacity());
-        log.info("   Thread name: {}", executor.getThreadNamePrefix());
+
         return executor;
     }
 

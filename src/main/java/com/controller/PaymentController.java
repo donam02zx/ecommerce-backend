@@ -44,6 +44,12 @@ public class PaymentController {
         return ApiResponse.success(paymentService.complete(getEmail(), id));
     }
 
+    @GetMapping("/{id}/payment")
+    @Operation(summary = "Get payment status by order ID")
+    public ApiResponse<PaymentResponse> getPaymentByOrderId(@PathVariable Long id) {
+        return ApiResponse.success(paymentService.getPaymentByOrderId(id));
+    }
+
     private String getEmail() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
     }
