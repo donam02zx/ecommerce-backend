@@ -28,6 +28,28 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    from: no-reply@ecommerce.com
+    username: ${SPRING_MAIL_USERNAME:test@localhost}
+    password: ${SPRING_MAIL_PASSWORD:}
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+          timeout: 5000
+          connection-timeout: 5000
+          write-timeout: 5000
+
+
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    cache: false
 
 
 

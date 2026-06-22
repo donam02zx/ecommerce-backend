@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Thanh toán thất bại</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .header { background-color: #dc3545; color: white; padding: 10px; text-align: center; border-radius: 4px; }
+        .reason-box { background-color: #fff3cd; padding: 15px; border-radius: 4px; margin: 15px 0; border-left: 4px solid #ffc107; }
+        .btn { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+        .footer { margin-top: 20px; font-size: 12px; color: #666; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>❌ Thanh toán thất bại</h2>
+    </div>
+
+    <p>Xin chào,</p>
+    <p>Rất tiếc, đơn hàng <strong>#<span th:text="${orderId}"></span></strong>
+        đã không thể thanh toán thành công.</p>
+
+    <div class="reason-box">
+        <p><strong>Lý do:</strong> <span th:text="${reason}">Không xác định</span></p>
+    </div>
+
+    <div class="order-info">
+        <p><strong>Mã đơn hàng:</strong> #<span th:text="${orderId}"></span></p>
+        <p><strong>Tổng tiền:</strong> <span th:text="${#numbers.formatCurrency(order.totalPrice)}"></span></p>
+    </div>
+
+    <div style="text-align: center; margin: 20px 0;">
+        <a href="#" class="btn">Thử lại</a>
+    </div>
+
+    <p>Vui lòng thử lại hoặc liên hệ hỗ trợ nếu cần giúp đỡ.</p>
+    <p><strong>Đội ngũ Ecommerce</strong></p>
+
+    <div class="footer">
+        <p>Email này được gửi tự động. Vui lòng không trả lời.</p>
+    </div>
+</div>
+</body>
+</html>

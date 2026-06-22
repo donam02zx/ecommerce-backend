@@ -6,10 +6,13 @@ import com.entity.*;
 import com.entity.enums.OrderStatus;
 import com.entity.enums.PaymentStatus;
 import com.entity.enums.StockTransactionType;
+import com.event.OrderFailedEvent;
+import com.event.OrderPaidEvent;
 import com.exception.AppException;
 import com.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +28,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final InventoryRepository inventoryRepository;
     private final StockTransactionRepository stockTransactionRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * RESERVED → PAID
@@ -79,6 +83,11 @@ public class PaymentService {
         orderRepository.save(order);
 
         log.info("Order paid: orderId={}, ref={}", orderId, payment.getTransactionRef());
+
+        // 📢 Publish event để gửi email (chạy async)
+        eventPublisher.publishEvent(new OrderPaidEvent(order, email));
+        log.info("📤 OrderPaidEvent published for order {}", orderId);
+
         return PaymentResponse.from(payment);
     }
 
@@ -113,6 +122,12 @@ public class PaymentService {
         orderRepository.save(order);
 
         log.info("Order payment failed: orderId={}", orderId);
+
+        // 📢 Publish event để gửi email (async)
+        String reason = "Thanh toán thất bại do lỗi từ cổng thanh toán (MOCK)";
+        eventPublisher.publishEvent(new OrderFailedEvent(order, email, reason));
+        log.info("📤 OrderFailedEvent published for order {}", orderId);
+
         return PaymentResponse.from(payment);
     }
 

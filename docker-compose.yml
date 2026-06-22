@@ -31,6 +31,14 @@ services:
       timeout: 5s
       retries: 5
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ecommerce-mailhog
+    ports:
+      - "1025:1025"   # SMTP port (Spring Mail sẽ kết nối vào đây)
+      - "8025:8025"   # Web UI (xem email tại http://localhost:8025)
+    restart: unless-stopped
+
   app:
     build: .
     container_name: ecommerce-app
@@ -48,11 +56,20 @@ services:
       JWT_REFRESH_EXPIRATION_MS: 604800000
       VNPAY_TMN_CODE: VSUMZHNG
       VNPAY_HASH_SECRET: EHHY40NBTOOMQV68RX2X6HU0TEQXUVDB
+      SPRING_MAIL_HOST: mailhog
+      SPRING_MAIL_PORT: 1025
+      SPRING_MAIL_USERNAME:
+      SPRING_MAIL_PASSWORD:
+      SPRING_MAIL_PROTOCOL: smtp
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: false
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: false
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     restart: on-failure
 
 volumes:

@@ -56,6 +56,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     userDetails, null, userDetails.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(auth);
             log.debug("Authenticated user: {}", email);
+            log.info("Authorities: {}", userDetails.getAuthorities());
         } else if (token != null && !jwtUtil.isValid(token)) {
             log.debug("Invalid or expired token");
         }
