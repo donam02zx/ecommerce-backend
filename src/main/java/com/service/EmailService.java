@@ -1,7 +1,6 @@
 package com.service;
 
-import com.entity.OrderEntity;
-import com.entity.OrderItemEntity;
+import com.dto.message.EmailMessage;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -9,14 +8,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import java.math.BigDecimal;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -30,56 +28,47 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    @Async("emailExecutor")  // 👈 Chạy trong thread pool
-    public void sendOrderPaidEmail(OrderEntity order, String userEmail) {
-        try {
-            log.info("📧 Sending order paid email for order {} to {}", order.getId(), userEmail);
+    private static final DateTimeFormatter FMT = DateTimeFormatter
+            .ofPattern("dd/MM/yyyy HH:mm")
+            .withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
 
-            // Tạo context cho template
-            Map<String, Object> variables = new HashMap<>();
-            variables.put("order", order);
-            variables.put("orderId", order.getId());
-            variables.put("totalPrice", order.getTotalPrice());
-            variables.put("items", order.getItems());
-            variables.put("userEmail", userEmail);
+    public void sendOrderPaidEmail(EmailMessage message) {
+        log.info("📧 Sending order paid email: orderId={}, to={}",
+                message.getOrderId(), message.getUserEmail());
 
-            // Render HTML template
-            String htmlContent = renderTemplate("email/order-paid", variables);
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("orderId",    message.getOrderId());
+        variables.put("totalPrice", message.getTotalPrice());
+        variables.put("items",      message.getItems());
+        variables.put("userEmail",  message.getUserEmail());
+        // Format Instant → String trước khi pass vào Thymeleaf
+        variables.put("createdAt",  message.getCreatedAt() != null
+                ? FMT.format(message.getCreatedAt()) : "N/A");
 
-            // Gửi email
-            sendHtmlEmail(userEmail, "Xác nhận đơn hàng #" + order.getId(), htmlContent);
+        String html = renderTemplate("email/order-paid", variables);
+        sendHtmlEmail(message.getUserEmail(),
+                "Xác nhận đơn hàng #" + message.getOrderId(), html);
 
-            log.info("✅ Order paid email sent for order {}", order.getId());
-
-        } catch (Exception e) {
-            // ❌ KHÔNG THROW EXCEPTION RA NGOÀI
-            // => KHÔNG ẢNH HƯỞNG ĐẾN TRANSACTION
-            log.error("❌ Failed to send order paid email for order {}: {}",
-                    order.getId(), e.getMessage(), e);
-        }
+        log.info("✅ Order paid email sent: orderId={}", message.getOrderId());
     }
 
-    @Async("emailExecutor")
-    public void sendOrderFailedEmail(OrderEntity order, String userEmail, String reason) {
-        try {
-            log.info("📧 Sending order failed email for order {} to {}", order.getId(), userEmail);
+    public void sendOrderFailedEmail(EmailMessage message) {
+        log.info("📧 Sending order failed email: orderId={}, to={}",
+                message.getOrderId(), message.getUserEmail());
 
-            Map<String, Object> variables = new HashMap<>();
-            variables.put("order", order);
-            variables.put("orderId", order.getId());
-            variables.put("reason", reason);
-            variables.put("userEmail", userEmail);
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("orderId",    message.getOrderId());
+        variables.put("totalPrice", message.getTotalPrice());
+        variables.put("reason",     message.getReason());
+        variables.put("userEmail",  message.getUserEmail());
+        variables.put("createdAt",  message.getCreatedAt() != null
+                ? FMT.format(message.getCreatedAt()) : "N/A");
 
-            String htmlContent = renderTemplate("email/order-failed", variables);
-            sendHtmlEmail(userEmail, "Thanh toán đơn hàng #" + order.getId() + " thất bại", htmlContent);
+        String html = renderTemplate("email/order-failed", variables);
+        sendHtmlEmail(message.getUserEmail(),
+                "Thanh toán đơn hàng #" + message.getOrderId() + " thất bại", html);
 
-            log.info("✅ Order failed email sent for order {}", order.getId());
-
-        } catch (Exception e) {
-            // ❌ KHÔNG THROW EXCEPTION RA NGOÀI
-            log.error("❌ Failed to send order failed email for order {}: {}",
-                    order.getId(), e.getMessage(), e);
-        }
+        log.info("✅ Order failed email sent: orderId={}", message.getOrderId());
     }
 
     private String renderTemplate(String templateName, Map<String, Object> variables) {
@@ -88,17 +77,18 @@ public class EmailService {
         return templateEngine.process(templateName, context);
     }
 
-    private void sendHtmlEmail(String to, String subject, String htmlContent)
-            throws MessagingException {
-
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-        helper.setFrom(fromEmail);
-        helper.setTo(to);
-        helper.setSubject(subject);
-        helper.setText(htmlContent, true);  // true = HTML
-
-        mailSender.send(message);
+    private void sendHtmlEmail(String to, String subject, String htmlContent) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, "ECommerce Store");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+        } catch (Exception e) {
+            // throw ra để Consumer nack → RabbitMQ retry
+            throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
+        }
     }
 }

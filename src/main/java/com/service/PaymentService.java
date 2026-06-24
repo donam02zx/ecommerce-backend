@@ -10,6 +10,7 @@ import com.event.OrderFailedEvent;
 import com.event.OrderPaidEvent;
 import com.exception.AppException;
 import com.exception.PaymentBusinessException;
+import com.messaging.EmailProducer;
 import com.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class PaymentService {
     private final StockTransactionRepository stockTransactionRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final PaymentGatewayClient paymentGatewayClient;
+    private final EmailProducer emailProducer;
 
     /**
      * RESERVED → PAID
@@ -98,7 +100,7 @@ public class PaymentService {
 
             log.info("✅ Order paid: orderId={}, ref={}", orderId, transactionRef);
 
-            eventPublisher.publishEvent(new OrderPaidEvent(order, email));
+            emailProducer.sendOrderPaidMessage(order, email);
             log.info("📤 OrderPaidEvent published for order {}", orderId);
 
             return PaymentResponse.from(payment);
@@ -117,7 +119,7 @@ public class PaymentService {
             orderRepository.save(order);
 
             String reason = e.getReason() != null ? e.getReason() : e.getMessage();
-            eventPublisher.publishEvent(new OrderFailedEvent(order, email, reason));
+            emailProducer.sendOrderFailedMessage(order, email, reason);
             log.info("📤 OrderFailedEvent published for order {}", orderId);
 
             throw AppException.badRequest("Payment failed: " + reason);

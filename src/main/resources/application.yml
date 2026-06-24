@@ -51,6 +51,22 @@ spring:
     suffix: .html
     cache: false
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: manual      # manual ack — chỉ ack khi xử lý thành công
+        retry:
+          enabled: true
+          max-attempts: 3             # retry 3 lần
+          initial-interval: 1000ms   # lần 1 cách 1s
+          multiplier: 2.0            # lần 2 cách 2s (1s * 2)
+          max-interval: 10000ms
+
 
 
 

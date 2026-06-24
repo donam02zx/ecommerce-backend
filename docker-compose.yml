@@ -17,6 +17,23 @@ services:
       retries: 5
     restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: ecommerce-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP port — Spring Boot kết nối vào đây
+      - "15672:15672"  # Management UI — mở browser xem queue tại http://localhost:15672
+      # username: guest / password: guest
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    restart: unless-stopped
+    healthcheck: # Thêm healthcheck cho RabbitMQ (tùy chọn)
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:alpine
     container_name: ecommerce-redis
